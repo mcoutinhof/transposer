@@ -233,7 +233,10 @@ if (typeof ctx.WorkerGlobalScope !== "undefined" && globalThis instanceof ctx.Wo
   /** @type {Promise<Mupdf> | null} */
   let carregando = null;
   // import() com URL em variável: o language server não tenta resolver; o cast dá os tipos da devDependency.
-  const carregarMupdf = () => (carregando ??= /** @type {Promise<Mupdf>} */ (import(URL_MUPDF)));
+  // Em falha (CDN/rede transitória), zerar o cache para o próximo clique poder retentar —
+  // uma promise rejeitada cacheada refalharia para sempre até recarregar a página.
+  const carregarMupdf = () => (carregando ??= /** @type {Promise<Mupdf>} */ (
+    import(URL_MUPDF).catch((e) => { carregando = null; throw e; })));
 
   ctx.onmessage = async (/** @type {MessageEvent} */ ev) => {
     const { dados, n } = ev.data;

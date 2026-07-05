@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Smoke — MuPDF CDN + worker</title>
+<pre id="log">carregando worker…</pre>
+<script type="module">
+  const log = (m) => (document.getElementById("log").textContent += "\n" + m);
+  const w = new Worker("./smoke-worker.js", { type: "module" });
+  w.onmessage = (ev) => log(ev.data);
+  w.onerror = (ev) => log("ERRO: " + ev.message);
+</script>
+</html>

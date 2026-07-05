@@ -1,0 +1,6 @@
+node_modules/
+test/fixtures/gerados/
+test/fixtures/real/
+test/spike/saida/
+.npm-cache/
+.playwright-mcp/

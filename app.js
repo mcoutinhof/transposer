@@ -35,7 +35,7 @@ function escolher(/** @type {File | undefined} */ f) {
   atualizar();
 }
 
-area.addEventListener("click", () => entrada.click());
+// O clique/Enter na área é tratado nativamente pelo <label for="arquivo"> — sem JS.
 entrada.addEventListener("change", () => escolher(entrada.files?.[0]));
 area.addEventListener("dragover", (e) => { e.preventDefault(); area.classList.add("arrastando"); });
 area.addEventListener("dragleave", () => area.classList.remove("arrastando"));

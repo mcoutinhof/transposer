@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transposer — transpõe cifras em PDF</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
+  h1 { text-align: center; margin: 0; }
+  #area { border: 2px dashed #999; border-radius: 8px; padding: 2rem 1rem; text-align: center; cursor: pointer; }
+  #area.arrastando { border-color: #06c; background: #eef6ff; }
+  #controles { display: flex; gap: 1rem; align-items: center; justify-content: center; }
+  #semitons { width: 5rem; font-size: 1.2rem; text-align: center; }
+  button { font-size: 1.1rem; padding: 0.5rem 2rem; }
+  #status { min-height: 1.5rem; text-align: center; margin: 0; }
+  #status.erro { color: #b00020; }
+</style>
+</head>
+<body>
+  <h1>Transposer</h1>
+  <div id="area">
+    <input type="file" id="arquivo" accept="application/pdf" hidden>
+    <span id="rotulo">Arraste um PDF de cifra aqui ou clique para escolher</span>
+  </div>
+  <div id="controles">
+    <label for="semitons">Semitons:</label>
+    <input type="number" id="semitons" min="-11" max="11" step="1" value="0">
+    <button id="transpor" disabled>Transpor</button>
+  </div>
+  <p id="status"></p>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

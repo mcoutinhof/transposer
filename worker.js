@@ -90,25 +90,44 @@ function coletarLinhas(pagina) {
 }
 
 /**
- * Retângulo-união dos quads, encolhido no eixo da ENTRELINHA (perpendicular à
- * direção da linha) para não tocar linhas vizinhas: linha horizontal separa-se
- * em Y; em página /Rotate 90/270 com texto reto no PDF space, em X.
- * Quads e rects de anotação estão ambos no espaço MuPDF — sem conversão.
+ * Retângulo de redação do acorde: cobre a LARGURA do token ao longo do eixo de
+ * leitura (extremos dos quads projetados na direção), mas no eixo da ENTRELINHA
+ * usa uma BANDA justa ancorada na baseline (origem ± fração do tamanho da fonte),
+ * não a altura do quad. Motivo: o quad da structured-text inclui ascent+descent
+ * e costuma ser MAIS ALTO que o espaçamento entre linhas, então um encolhimento
+ * por fração do quad ainda invade a linha vizinha em cifras de espaçamento
+ * apertado — e o REDACT_TEXT_REMOVE apaga todo glifo que o retângulo intercepta,
+ * comendo a letra. A banda pela baseline nunca alcança a vizinha se o espaçamento
+ * for ≥ ~1 tamanho de fonte (sempre, em cifras reais). Como a redação só precisa
+ * INTERCEPTAR o glifo antigo para removê-lo, uma banda justa basta.
+ * `acima`/`abaixo` são frações do tamanho (ascent/descent do acorde). Direcional:
+ * cobre /Rotate por projeção nos eixos leitura/perpendicular. Espaço MuPDF, sem conversão.
  * @param {number[][]} quads @param {number[]} direcao
+ * @param {{x: number, y: number}} origem @param {number} tamanho
  * @returns {[number, number, number, number]}
  */
-function retanguloDe(quads, direcao, encolhe = 0.1) {
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const q of quads) {
-    x0 = Math.min(x0, q[0], q[2], q[4], q[6]); x1 = Math.max(x1, q[0], q[2], q[4], q[6]);
-    y0 = Math.min(y0, q[1], q[3], q[5], q[7]); y1 = Math.max(y1, q[1], q[3], q[5], q[7]);
+function retanguloDe(quads, direcao, origem, tamanho, acima = 0.7, abaixo = 0.0) {
+  const mag = Math.hypot(direcao[0], direcao[1]) || 1;
+  const dir = [direcao[0] / mag, direcao[1] / mag];
+  const up = [dir[1], -dir[0]]; // perpendicular; +up = ascent (fitz y-baixo)
+  // extensão ao longo da leitura, dos quads (largura do acorde)
+  let smin = Infinity, smax = -Infinity;
+  for (const q of quads) for (let k = 0; k < 8; k += 2) {
+    const s = q[k] * dir[0] + q[k + 1] * dir[1];
+    if (s < smin) smin = s;
+    if (s > smax) smax = s;
   }
-  if (Math.abs(direcao[0]) >= Math.abs(direcao[1])) {
-    const dy = (y1 - y0) * encolhe;
-    return [x0, y0 + dy, x1, y1 - dy];
+  // banda perpendicular ancorada na baseline (projeção da origem no eixo up)
+  const pBase = origem.x * up[0] + origem.y * up[1];
+  const pHi = pBase + acima * tamanho;  // lado do ascent
+  const pLo = pBase - abaixo * tamanho; // lado do descent
+  // 4 cantos = {smin,smax} × {pLo,pHi}; ponto = s·dir + p·up → bbox alinhado aos eixos
+  const xs = [], ys = [];
+  for (const s of [smin, smax]) for (const p of [pLo, pHi]) {
+    xs.push(s * dir[0] + p * up[0]);
+    ys.push(s * dir[1] + p * up[1]);
   }
-  const dx = (x1 - x0) * encolhe;
-  return [x0 + dx, y0, x1 - dx, y1];
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
 
 /**
@@ -117,7 +136,7 @@ function retanguloDe(quads, direcao, encolhe = 0.1) {
  * @param {Mupdf} mupdf @param {import("mupdf").PDFPage} pagina @param {Substituicao[]} subs
  */
 function apagarTokens(mupdf, pagina, subs) {
-  for (const s of subs) pagina.createAnnotation("Redact").setRect(retanguloDe(s.quads, s.direcao));
+  for (const s of subs) pagina.createAnnotation("Redact").setRect(retanguloDe(s.quads, s.direcao, s.origem, s.tamanho));
   pagina.applyRedactions(false, mupdf.PDFPage.REDACT_IMAGE_NONE,
     mupdf.PDFPage.REDACT_LINE_ART_NONE, mupdf.PDFPage.REDACT_TEXT_REMOVE);
 }

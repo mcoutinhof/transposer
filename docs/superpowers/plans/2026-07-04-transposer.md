@@ -84,7 +84,7 @@ O cenário CDN+worker não aparece na doc oficial do MuPDF.js — validá-lo ant
     "target": "es2022",
     "lib": ["es2022", "dom", "dom.iterable"]
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "test/spike"]
 }
 ```
 
@@ -793,9 +793,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { detectarSubstituicoes } from "../detect.js";
 
-/** Monta uma linha de tokens a partir de string (split por whitespace, como o worker faz). */
+/** Monta uma linha de tokens a partir de string (split por whitespace, como o worker faz). @param {string} s */
 const L = (s) => s.split(/\s+/).filter(Boolean).map((texto) => ({ texto }));
-/** Roda uma linha só e devolve pares [textoOriginal, textoNovo]. */
+/** Roda uma linha só e devolve pares [textoOriginal, textoNovo]. @param {string} s @param {number} n */
 const subs = (s, n) => detectarSubstituicoes([L(s)], n).substituicoes.map((x) => [x.token.texto, x.textoNovo]);
 
 test("linha de acordes clássica", () => {
@@ -1038,7 +1038,7 @@ import { transporPdf } from "../worker.js";
 import { criarPdf, salvar, LINHAS_CIFRA } from "./fixtures/gerar.mjs";
 import { extrairTexto, extrairTokens } from "./util.mjs";
 
-const bytesDe = (doc) => doc.saveToBuffer("").asUint8Array().slice();
+const bytesDe = (/** @type {mupdf.PDFDocument} */ doc) => doc.saveToBuffer("").asUint8Array().slice();
 const abrir = (/** @type {Uint8Array} */ bytes) =>
   /** @type {mupdf.PDFDocument} */ (mupdf.Document.openDocument(bytes, "application/pdf"));
 

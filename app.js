@@ -37,6 +37,9 @@ function escolher(/** @type {File | undefined} */ f) {
 
 // O clique/Enter na área é tratado nativamente pelo <label for="arquivo"> — sem JS.
 entrada.addEventListener("change", () => escolher(entrada.files?.[0]));
+// Soltar o arquivo FORA da área faria o navegador abrir o PDF e sair do app.
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => e.preventDefault());
 area.addEventListener("dragover", (e) => { e.preventDefault(); area.classList.add("arrastando"); });
 area.addEventListener("dragleave", () => area.classList.remove("arrastando"));
 area.addEventListener("drop", (e) => {
@@ -51,8 +54,15 @@ botao.addEventListener("click", async () => {
   emCurso = { nome: arquivo.name, n: lerN() };
   atualizar();
   avisar("Carregando…");
-  const dados = await arquivo.arrayBuffer();
-  worker.postMessage({ dados, n: emCurso.n }, [dados]);
+  try {
+    const dados = await arquivo.arrayBuffer();
+    worker.postMessage({ dados, n: emCurso.n }, [dados]);
+  } catch {
+    // Ex.: o arquivo mudou/sumiu do disco depois de escolhido (NotReadableError).
+    emCurso = null;
+    atualizar();
+    avisar("Não foi possível ler o arquivo — escolha-o de novo.", true);
+  }
 });
 
 worker.onmessage = (/** @type {MessageEvent} */ ev) => {
@@ -72,8 +82,10 @@ worker.onmessage = (/** @type {MessageEvent} */ ev) => {
   const n = contexto?.n ?? 0;
   a.download = `${base} (${n > 0 ? "+" : ""}${n}).pdf`;
   a.click();
-  URL.revokeObjectURL(a.href);
-  avisar(`${m.acordes} acordes transpostos em ${m.linhas} linhas`);
+  // Revogar na hora pode cancelar o download em alguns navegadores; dá folga.
+  setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+  const plural = (/** @type {number} */ q, /** @type {string} */ um, /** @type {string} */ varios) => `${q} ${q === 1 ? um : varios}`;
+  avisar(`${plural(m.acordes, "acorde transposto", "acordes transpostos")} em ${plural(m.linhas, "linha", "linhas")}`);
 };
 worker.onerror = () => {
   emCurso = null;

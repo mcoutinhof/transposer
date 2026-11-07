@@ -15,6 +15,7 @@
   #controles { display: flex; gap: 1rem; align-items: center; justify-content: center; }
   #semitons { width: 5rem; font-size: 1.2rem; text-align: center; }
   button { font-size: 1.1rem; padding: 0.5rem 2rem; }
+  #rotulo { pointer-events: none; } /* sem isso, passar sobre o texto dispara dragleave e a borda pisca */
   #status { min-height: 1.5rem; text-align: center; margin: 0; }
   #status.erro { color: #b00020; }
 </style>
@@ -22,7 +23,7 @@
 <body>
   <h1>Transposer</h1>
   <label id="area" for="arquivo">
-    <input type="file" id="arquivo" accept="application/pdf">
+    <input type="file" id="arquivo" accept="application/pdf,.pdf">
     <span id="rotulo">Arraste um PDF de cifra aqui ou clique para escolher</span>
   </label>
   <div id="controles">
@@ -30,7 +31,7 @@
     <input type="number" id="semitons" min="-11" max="11" step="1" value="0">
     <button id="transpor" disabled>Transpor</button>
   </div>
-  <p id="status"></p>
+  <p id="status" role="status" aria-live="polite"></p>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

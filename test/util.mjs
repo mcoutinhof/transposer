@@ -12,7 +12,7 @@ export function extrairTexto(doc) {
   const linhas = [];
   for (let i = 0; i < doc.countPages(); i++) {
     let atual = "";
-    doc.loadPage(i).toStructuredText().walk({
+    doc.loadPage(i).toStructuredText("").walk({
       beginLine() { atual = ""; },
       onChar(c) { atual += c; },
       endLine() { linhas.push(atual); },
@@ -33,7 +33,7 @@ export function extrairTokens(doc) {
     /** @type {{texto: string, x: number, y: number, pagina: number} | null} */
     let atual = null;
     const fechar = () => { if (atual && atual.texto) tokens.push(atual); atual = null; };
-    doc.loadPage(i).toStructuredText().walk({
+    doc.loadPage(i).toStructuredText("").walk({
       onChar(c, origem) {
         if (c.trim() === "") { fechar(); return; }
         if (!atual) atual = { texto: "", x: origem[0], y: origem[1], pagina: i };

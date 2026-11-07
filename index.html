@@ -3,38 +3,146 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Transposer</title>
+<title>Mudar o tom da cifra em PDF: transpor online e grátis | Transposer</title>
+<meta name="description" content="Abaixe ou suba o tom da cifra em PDF e baixe o mesmo PDF, sem perder a formatação. Grátis e sem cadastro: hinário, apostila do louvor, Cifra Club.">
+<link rel="canonical" href="https://mcoutinhof.github.io/transposer/">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-title" content="Transposer">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Transposer">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:url" content="https://mcoutinhof.github.io/transposer/">
+<meta property="og:title" content="Mude o tom da sua cifra em PDF">
+<meta property="og:description" content="Suba ou abaixe o tom e receba o mesmo PDF, com a letra igual.">
+<meta property="og:image" content="https://mcoutinhof.github.io/transposer/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Cifra antes e depois de subir 1 tom: os acordes G, D e Em viram A, E e F#m, e a letra continua igual">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [{
+  "@type": "WebApplication",
+  "@id": "https://mcoutinhof.github.io/transposer/#app",
+  "name": "Transposer",
+  "alternateName": "Transpositor de cifras em PDF",
+  "url": "https://mcoutinhof.github.io/transposer/",
+  "description": "Ferramenta gratuita que muda o tom de cifras em PDF (hinário, apostila do louvor, Cifra Club) direto no navegador: detecta os acordes, sobe ou abaixa de meio em meio tom, até 3 tons, e devolve o mesmo PDF com a letra e a formatação intactas, sem enviar o arquivo a nenhum servidor.",
+  "inLanguage": "pt-BR",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Qualquer navegador moderno (Android, iPhone, Windows, macOS, Linux)",
+  "browserRequirements": "Requer JavaScript e WebAssembly",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
+  "image": "https://mcoutinhof.github.io/transposer/og.png",
+  "featureList": [
+    "Transpõe cifras em PDF de meio em meio tom, até 3 tons para cima ou para baixo",
+    "Mantém a letra e o layout do PDF original",
+    "Processa tudo no próprio aparelho: o PDF não é enviado",
+    "Grátis, sem cadastro e de código aberto"
+  ],
+  "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+  "author": { "@id": "https://github.com/mcoutinhof#pessoa" }
+}, {
+  "@type": "SoftwareSourceCode",
+  "@id": "https://github.com/mcoutinhof/transposer#codigo",
+  "name": "Transposer (código-fonte)",
+  "codeRepository": "https://github.com/mcoutinhof/transposer",
+  "programmingLanguage": "JavaScript",
+  "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+  "targetProduct": { "@id": "https://mcoutinhof.github.io/transposer/#app" },
+  "author": { "@id": "https://github.com/mcoutinhof#pessoa" }
+}, {
+  "@type": "Person",
+  "@id": "https://github.com/mcoutinhof#pessoa",
+  "name": "Mateus Coutinho",
+  "url": "https://github.com/mcoutinhof"
+}]
+}
+</script>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; padding: 0 1rem; display: grid; gap: 1rem; }
-  h1 { text-align: center; margin: 0; }
-  #area { display: block; border: 2px dashed #999; border-radius: 8px; padding: 2rem 1rem; text-align: center; cursor: pointer; }
-  #area.arrastando { border-color: #06c; background: #eef6ff; }
-  #area:focus-within { border-color: #06c; outline: 2px solid #06c; outline-offset: 2px; }
-  /* input escondido visualmente mas ainda focável por teclado (Tab → Enter abre o seletor) */
-  #arquivo { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
-  #tom { display: flex; gap: 0.75rem; align-items: center; justify-content: center; }
-  #tom button { width: 2.8rem; height: 2.8rem; padding: 0; font-size: 1.5rem; border-radius: 50%; }
-  #valor { min-width: 12rem; text-align: center; font-size: 1.2rem; font-weight: 600; }
-  #valor.original { color: #767676; font-weight: normal; }
-  #transpor { justify-self: center; font-size: 1.1rem; padding: 0.5rem 2rem; }
-  #rotulo { pointer-events: none; } /* sem isso, passar sobre o texto dispara dragleave e a borda pisca */
-  #status { min-height: 1.5rem; text-align: center; margin: 0; }
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 1.25rem auto 0; padding: 0 1rem; color: #1a1a1a; }
+  @media (min-height: 700px) and (min-width: 600px) { body { margin-top: 3rem; } }
+  /* Computador: a página inteira um pouco maior e mais para o meio da tela. */
+  @media (min-height: 700px) and (min-width: 1000px) { html { font-size: 125%; } body { margin-top: 12vh; } }
+  main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; padding-bottom: 2rem; }
+  h1 img { width: 1.75rem; height: 1.75rem; }
+  h1 { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin: 0; font-size: 1rem; color: #1759ef; }
+  #area { position: relative; display: grid; place-content: center; justify-items: center; gap: 0.15rem; min-height: 6.5rem; box-sizing: border-box; border: 2px dashed #767676; border-radius: 12px; padding: 0.75rem 1rem; text-align: center; cursor: pointer; }
+  #area.arrastando { border-color: #1759ef; background: #eaf1ff; }
+  #area.escolhido { border-style: solid; border-color: #1759ef; background: #f4f7ff; }
+  #area:focus-within { border-color: #1759ef; outline: 2px solid #1759ef; outline-offset: 2px; }
+  /* O campo cobre a área inteira, invisível: o toque (e o "explorar pelo toque" do leitor de tela) cai nele. */
+  #arquivo { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; font-size: 0; }
+  #rotulo { pointer-events: none; display: contents; }
+  #rotulo svg { width: 2rem; height: 2rem; color: #1759ef; margin-bottom: 0.2rem; }
+  #area.escolhido .ic-escolher, #area:not(.escolhido) .ic-escolhido { display: none; }
+  #rotulo-texto { font-weight: 600; color: #1759ef; overflow-wrap: anywhere; }
+  .dica { font-size: 0.9rem; color: #555; }
+  .dica-arraste { display: none; }
+  @media (hover: hover) and (pointer: fine) { #area:not(.escolhido) .dica-arraste { display: inline; } }
+  .dica-trocar { display: none; text-decoration: underline; }
+  #area.escolhido .dica-trocar { display: inline; }
+  button, #area { -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; cursor: pointer; }
+  button:active { filter: brightness(0.9); }
+  #tom { display: flex; gap: 0.75rem; align-items: start; justify-content: center; }
+  .lado { display: grid; justify-items: center; gap: 0.15rem; font-size: 0.8rem; color: #555; }
+  #tom button { width: 2.8rem; height: 2.8rem; padding: 0; font-size: 1.5rem; line-height: 1; border-radius: 50%; background: #fff; color: #1759ef; border: 2px solid #1759ef; }
+  /* aria-disabled (não disabled): o botão continua focável, e o foco de quem usa teclado não se perde */
+  #tom button[aria-disabled="true"] { color: #b0b0b0; border-color: #d0d0d0; cursor: default; }
+  #valor { display: flex; align-items: center; justify-content: center; min-height: 2.8rem; width: 12rem; max-width: calc(100% - 8.2rem); text-wrap: balance; text-align: center; font-size: 1.2rem; font-weight: 600; }
+  #valor.original { font-weight: normal; }
+  @media (max-width: 340px) { #valor { font-size: 1.05rem; } }
+  /* Mesma largura nos dois botões grandes, e o "Mudando… 3 de 4" não alarga o botão. */
+  #transpor, #compartilhar { min-width: 14rem; font-variant-numeric: tabular-nums; }
+  #transpor { justify-self: center; font-size: 1.1rem; font-weight: 600; padding: 0.75rem 1.5rem; border: 0; border-radius: 999px; background: #1759ef; color: #fff; }
+  #transpor[aria-busy="true"] { cursor: progress; }
+  #transpor[aria-disabled="true"] { background: #dfe6f7; color: #6b7896; cursor: default; }
+  button[aria-disabled="true"]:active { filter: none; }
+  /* Depois de pronto, o próximo passo é compartilhar: ele fica em destaque, e "Mudar o tom" só com contorno. */
+  #transpor.feito { background: #fff; color: #1759ef; box-shadow: inset 0 0 0 2px #1759ef; }
+  /* Abaixo do resultado não há nada: o que aparece nele não empurra a página. */
+  #resultado { display: grid; }
+  #status { text-align: center; text-wrap: balance; margin: 0; overflow-wrap: anywhere; }
   #status.erro { color: #b00020; }
+  #status.com-texto + #compartilhar { margin-top: 0.6rem; }
+  #compartilhar { justify-self: center; font-size: 1.1rem; font-weight: 600; padding: 0.75rem 1.5rem; border: 0; border-radius: 999px; background: #1759ef; color: #fff; }
+  #compartilhar[hidden] { display: none; }
+  .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 </style>
 </head>
 <body>
-  <h1>Transposer</h1>
+<main>
+  <h1><img src="icone.svg" width="28" height="28" alt="">Transposer<span class="sr">: mudar o tom da cifra em PDF</span></h1>
   <label id="area" for="arquivo">
-    <input type="file" id="arquivo" accept="application/pdf,.pdf">
-    <span id="rotulo">Arraste um PDF de cifra aqui ou clique para escolher</span>
+    <input type="file" id="arquivo" accept="application/pdf,.pdf" aria-label="Escolher o PDF da cifra">
+    <span id="rotulo" aria-hidden="true">
+      <svg class="ic-escolher" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6m-3 3 3-3 3 3"/></svg>
+      <svg class="ic-escolhido" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m8.5 14.5 2.5 2.5 4.5-5"/></svg>
+      <span id="rotulo-texto">Escolher o PDF da cifra</span>
+      <span class="dica dica-arraste">ou arraste até aqui</span>
+      <span class="dica dica-trocar">trocar de arquivo</span>
+    </span>
   </label>
-  <div id="tom">
-    <button id="abaixar" aria-label="Abaixar meio tom">−</button>
-    <span id="valor" class="original" aria-live="polite">Tom original</span>
-    <button id="subir" aria-label="Subir meio tom">+</button>
+  <div id="tom" role="group" aria-label="Tom">
+    <span class="lado"><button id="abaixar" aria-label="Abaixar meio tom">−</button><span aria-hidden="true">abaixar</span></span>
+    <span id="valor" class="original"><span class="sr">Mudança: </span><span id="valor-texto">Tom original</span></span>
+    <span class="lado"><button id="subir" aria-label="Subir meio tom">+</button><span aria-hidden="true">subir</span></span>
   </div>
-  <button id="transpor" disabled>Transpor</button>
-  <p id="status" role="status" aria-live="polite"></p>
-  <script type="module" src="./app.js"></script>
+  <button id="transpor" aria-disabled="true">Mudar o tom</button>
+  <div id="resultado">
+    <p id="status" role="status" aria-live="polite"></p>
+    <button id="compartilhar" hidden>Compartilhar o PDF</button>
+  </div>
+  <p id="anuncio" class="sr" aria-live="polite"></p>
+</main>
+<script type="module" src="./app.js"></script>
 </body>
 </html>

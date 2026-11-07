@@ -5,6 +5,9 @@
 import { detectarSubstituicoes } from "./detect.js";
 
 /** @typedef {typeof import("mupdf")} Mupdf */
+
+/** Erro com mensagem escrita para o usuário; qualquer outro (ex.: exceção crua do MuPDF, em inglês) vira mensagem genérica. */
+export class ErroAmigavel extends Error {}
 /**
  * @typedef {{ texto: string, origem: {x: number, y: number}, direcao: number[],
  *   quads: number[][], tamanho: number, cor: number[],
@@ -26,13 +29,13 @@ export function transporPdf(mupdf, dados, n, aoProgredir = () => {}) {
   try {
     doc = mupdf.Document.openDocument(dados, "application/pdf");
   } catch {
-    throw new Error("Não foi possível abrir o arquivo como PDF.");
+    throw new ErroAmigavel("Não consegui abrir este arquivo. Confira se ele é mesmo um PDF.");
   }
   // destroy() explícito: o heap do WASM nunca encolhe, e o worker vive a sessão toda —
   // não dá para depender do GC (FinalizationRegistry) para soltar o documento.
   try {
-    if (doc.needsPassword()) throw new Error("Este PDF é protegido por senha — envie uma versão sem senha.");
-    if (!(doc instanceof mupdf.PDFDocument)) throw new Error("Não foi possível abrir o arquivo como PDF.");
+    if (doc.needsPassword()) throw new ErroAmigavel("Este PDF tem senha. Use uma cópia sem senha.");
+    if (!(doc instanceof mupdf.PDFDocument)) throw new ErroAmigavel("Não consegui abrir este arquivo. Confira se ele é mesmo um PDF.");
     const total = doc.countPages();
     let acordes = 0, linhasAfetadas = 0, invisiveis = 0, visiveis = 0;
     /** @type {Map<string, import("mupdf").PDFObject>} fonte base-14 → objeto, compartilhado entre páginas */
@@ -58,9 +61,9 @@ export function transporPdf(mupdf, dados, n, aoProgredir = () => {}) {
     // Só "digitalizado" se o texto é MAJORITARIAMENTE invisível — um PDF comum com uma
     // marca d'água oculta não deve receber essa mensagem.
     if (acordes === 0 && invisiveis > visiveis) {
-      throw new Error("Este PDF parece ser digitalizado (o texto é só uma camada invisível de OCR) — não dá para transpor.");
+      throw new ErroAmigavel("Este PDF parece ser foto ou papel escaneado. Só funciona com cifra digitada.");
     }
-    if (acordes === 0) throw new Error("Nenhum acorde detectado");
+    if (acordes === 0) throw new ErroAmigavel("Não achei acordes neste PDF. Eles precisam estar digitados em cima da letra.");
 
     const buffer = doc.saveToBuffer("garbage,compress");
     // .slice(): asUint8Array é uma view do heap WASM — copiar antes de transferir.
@@ -332,22 +335,24 @@ if (typeof ctx.WorkerGlobalScope !== "undefined" && globalThis instanceof ctx.Wo
   // uma promise rejeitada cacheada refalharia para sempre até recarregar a página.
   const carregarMupdf = () => (carregando ??= /** @type {Promise<Mupdf>} */ (
     import(URL_MUPDF).catch((e) => { carregando = null; throw e; })));
-  // Pré-carga: os ~10 MB do WASM baixam enquanto o usuário escolhe o arquivo, não no clique.
-  // Falha aqui é silenciosa — o clique retenta e aí reporta o erro.
-  carregarMupdf().catch(() => {});
-
   ctx.onmessage = async (/** @type {MessageEvent} */ ev) => {
+    // Pré-carga sob demanda: a página pede assim que o usuário demonstra intenção (abre o
+    // seletor, arrasta, escolhe o arquivo), e os ~4 MB comprimidos do WASM baixam enquanto
+    // ele escolhe o arquivo e o tom — não no clique, e nem para quem só visita a página.
+    // Falha aqui é silenciosa — o clique em Transpor retenta e aí reporta o erro.
+    if (ev.data?.tipo === "preparar") { carregarMupdf().catch(() => {}); return; }
     const { dados, n } = ev.data;
     try {
       const mupdf = await carregarMupdf();
       const r = transporPdf(mupdf, dados, n,
         (pagina, total) => ctx.postMessage({ tipo: "progresso", pagina, total }));
-      ctx.postMessage({ tipo: "ok", dados: r.dados, acordes: r.acordes, linhas: r.linhas }, [r.dados.buffer]);
+      ctx.postMessage({ tipo: "ok", dados: r.dados }, [r.dados.buffer]);
     } catch (e) {
-      const mensagem = e instanceof Error ? e.message : String(e);
+      const mensagem = e instanceof ErroAmigavel ? e.message
+        : "Não consegui mudar o tom deste PDF. Tente outro arquivo.";
       // Falha de rede no import do CDN: a mensagem crua do navegador não ajuda o usuário.
       ctx.postMessage({ tipo: "erro", mensagem: carregando === null
-        ? "Não foi possível baixar o componente de PDF — verifique a conexão e tente de novo."
+        ? "Não consegui carregar. Confira a internet e tente de novo."
         : mensagem });
     }
   };

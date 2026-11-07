@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1200px;height:630px;overflow:hidden}
+body{font-family:"Noto Sans",system-ui,sans-serif;background:#fff;color:#1a1a1a;display:grid;grid-template-columns:530px 1fr;align-items:center;padding:0 48px;gap:40px}
+.marca{display:flex;align-items:center;gap:16px;font-size:34px;font-weight:700;color:#1759ef;margin-bottom:26px}
+.marca img{width:64px;height:64px}
+h1{font-size:60px;line-height:1.06;font-weight:800;letter-spacing:-1px}
+p{font-size:29px;line-height:1.35;color:#444;margin-top:22px}
+.folha{background:#fff;border:2px solid #d6d6d6;border-radius:12px;box-shadow:0 8px 30px #0002;padding:24px 28px;font-family:"Noto Sans Mono",monospace;font-size:35px;line-height:1.25}
+.rot{font-family:"Noto Sans",sans-serif;font-size:24px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#767676;margin-bottom:6px}
+.ac{font-weight:700;white-space:pre;color:#555}
+.le{white-space:pre;color:#333}
+.depois .ac{color:#1759ef}
+.depois .rot{color:#1759ef}
+.seta{display:flex;align-items:center;gap:12px;margin:18px 0;font-family:"Noto Sans",sans-serif;font-weight:700;font-size:30px;color:#fff}
+.seta span{background:#1759ef;border-radius:999px;padding:6px 22px}
+.seta::before,.seta::after{content:"";flex:1;border-top:2px dashed #c4c4c4}
+</style></head><body>
+<div>
+  <div class="marca"><img src="../icone.svg" alt="">Transposer</div>
+  <h1>Mude o tom da sua cifra em PDF</h1>
+  <p>Suba ou abaixe o tom e receba o mesmo PDF, com a letra igual.</p>
+</div>
+<div class="folha">
+  <div class="antes"><div class="rot">Tom original</div>
+    <div class="ac">G           D     Em</div>
+    <div class="le">Como pode o peixe vivo</div></div>
+  <div class="seta"><span>▲ Subir 1 tom</span></div>
+  <div class="depois"><div class="rot">Novo tom</div>
+    <div class="ac">A           E     F#m</div>
+    <div class="le">Como pode o peixe vivo</div></div>
+</div>
+</body></html>

@@ -50,9 +50,9 @@ test("página com /Rotate 90: transpõe e preserva a letra (redação não come 
   assert.equal(r.acordes, 12);
 });
 
-test("zero acordes → erro 'Nenhum acorde detectado'", () => {
+test("zero acordes → erro 'Não achei acordes'", () => {
   const semAcordes = criarPdf(["Documento sem nenhum acorde.", "So texto comum aqui."]);
-  assert.throws(() => transporPdf(mupdf, bytesDe(semAcordes), 2), /Nenhum acorde detectado/);
+  assert.throws(() => transporPdf(mupdf, bytesDe(semAcordes), 2), /Não achei acordes/);
 });
 
 test("PDF com senha → erro claro", () => {
@@ -81,7 +81,7 @@ test("entrelinha apertada (0.82× a fonte): a redação não come a letra vizinh
 });
 
 test("PDF digitalizado com OCR (texto invisível): erro claro, nada reinserido por cima da imagem", () => {
-  assert.throws(() => transporPdf(mupdf, bytesDe(criarPdf(LINHAS_CIFRA, { invisivel: true })), 2), /digitalizado/);
+  assert.throws(() => transporPdf(mupdf, bytesDe(criarPdf(LINHAS_CIFRA, { invisivel: true })), 2), /escaneado/);
 });
 
 test("acordes colados: cada pedaço é reinserido na posição do original", () => {
@@ -106,5 +106,5 @@ test("várias páginas reusam o mesmo objeto de fonte (sem duplicar por página)
 
 test("texto invisível minoritário (marca d'água oculta) não vira mensagem de PDF digitalizado", () => {
   const r = criarPdf(["Documento sem nenhum acorde.", "So texto comum aqui."], { posambulo: "BT 3 Tr /F1 11 Tf 50 100 Td (marca) Tj ET\n" });
-  assert.throws(() => transporPdf(mupdf, bytesDe(r), 2), /^Error: Nenhum acorde detectado$/);
+  assert.throws(() => transporPdf(mupdf, bytesDe(r), 2), /^Error: Não achei acordes/);
 });

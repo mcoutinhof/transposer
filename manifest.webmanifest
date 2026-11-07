@@ -1,0 +1,17 @@
+{
+  "id": "/transposer/",
+  "name": "Transposer — mude o tom de cifras em PDF",
+  "short_name": "Transposer",
+  "description": "Suba ou abaixe o tom de cifras em PDF e baixe o mesmo PDF no novo tom, com a formatação intacta.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

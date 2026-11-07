@@ -1,19 +1,30 @@
-# Transposer
+# Transposer — mude o tom de cifras em PDF
 
-Transpõe cifras em PDF direto no navegador: selecione um PDF textual de cifra
-(formato clássico: linha de acordes sobre a letra), escolha quanto subir ou
-abaixar o tom (de meio em meio tom, até 3 tons) e baixe o PDF editado —
-formatação intacta, nada sai da sua máquina (100% client-side, sem backend).
+**Use aqui: https://mcoutinhof.github.io/transposer/**
 
-## Uso
+O Transposer sobe ou abaixa o tom de uma cifra em PDF (do hinário, da apostila
+do louvor, do Cifra Club) e devolve o **mesmo PDF** com os acordes trocados e a
+letra e a formatação iguais. Tudo roda no navegador: o arquivo não é enviado a
+nenhum servidor.
 
-Abra a página publicada (GitHub Pages) ou sirva o diretório localmente:
+## Como mudar o tom de uma cifra em PDF sem perder a formatação
+
+1. Abra o site e escolha o PDF da cifra.
+2. Toque em − (abaixar) ou + (subir): cada toque é meio tom, até 3 tons.
+3. Toque em "Mudar o tom". O PDF novo é baixado com o nome `música (+2).pdf`.
+
+## Funciona com qualquer PDF?
+
+Com PDF de texto no formato de acordes sobre a letra. Não funciona com PDF
+escaneado ou foto, com acordes entre colchetes no meio da letra (`[A]`) nem com
+cifra em Dó-Ré-Mi. Os acordes novos saem com sustenido (C#, D#, F#, G#), exceto
+Bb. Linhas de capotraste e de afinação ficam como estão.
+
+## Rodar localmente
+
+Sirva o diretório:
 
     python3 -m http.server 8080   # → http://localhost:8080/
-
-Limitações de propósito: só PDFs com texto real (nada de escaneado/OCR),
-só o formato acorde-sobre-letra (sem `[A]` inline), grafia de saída com
-sustenidos (exceto Bb). Linhas de capo/shape e de afinação ficam intactas.
 
 Validação em lote (letra preservada + sem acorde-fantasma) num diretório de PDFs:
 

@@ -13,7 +13,11 @@ Abra a página publicada (GitHub Pages) ou sirva o diretório localmente:
 
 Limitações de propósito: só PDFs com texto real (nada de escaneado/OCR),
 só o formato acorde-sobre-letra (sem `[A]` inline), grafia de saída com
-sustenidos (exceto Bb).
+sustenidos (exceto Bb). Linhas de capo/shape e de afinação ficam intactas.
+
+Validação em lote (letra preservada + sem acorde-fantasma) num diretório de PDFs:
+
+    node test/validar-lote.mjs <dir>
 
 ## Desenvolvimento
 

@@ -21,7 +21,7 @@ formatação em todos os cenários sintéticos. Prosseguir para as Tasks 4–7.
 |---|---|---|
 | `estado` (`cm`/`Tr`/`Tc` residuais) | PASSOU | acordes visíveis e no lugar apesar do `3 Tr` (texto invisível) e `cm` residuais — par `q`-prefixado/`Q` + reset de estado de texto funcionam (`estado-depois-p1.png`) |
 | `rotate90` (`/Rotate 90`) | PASSOU | acordes na posição/orientação certas na página rodada **e** linhas de letra vizinhas 100% intactas — encolhimento direcional do `retanguloDe` (entrelinha no eixo X) impede a redação de comer a vizinha (`rotate90-depois-p1.png`) |
-| PDF real (CifraClub) | PENDENTE | nenhum arquivo em `test/fixtures/real/`; os sintéticos cobrem a mecânica. Rodar o spike num PDF real (fontes CID/Identity-H, `/ToUnicode`, imagens de fundo) antes do release — pedir ao usuário |
+| PDFs reais (568, acervo do usuário) | PASSOU | 568/568 letra preservada e 568/568 sem acorde-fantasma (`test/validar-lote.mjs`), na 1.27.0 (commit 9d02091) e de novo na 1.28.1 com a banda de redação atual |
 
 ## Divergências de API encontradas
 

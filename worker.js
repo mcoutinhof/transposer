@@ -28,36 +28,97 @@ export function transporPdf(mupdf, dados, n, aoProgredir = () => {}) {
   } catch {
     throw new Error("Não foi possível abrir o arquivo como PDF.");
   }
-  if (doc.needsPassword()) throw new Error("Este PDF é protegido por senha — envie uma versão sem senha.");
-  if (!(doc instanceof mupdf.PDFDocument)) throw new Error("Não foi possível abrir o arquivo como PDF.");
+  // destroy() explícito: o heap do WASM nunca encolhe, e o worker vive a sessão toda —
+  // não dá para depender do GC (FinalizationRegistry) para soltar o documento.
+  try {
+    if (doc.needsPassword()) throw new Error("Este PDF é protegido por senha — envie uma versão sem senha.");
+    if (!(doc instanceof mupdf.PDFDocument)) throw new Error("Não foi possível abrir o arquivo como PDF.");
+    const total = doc.countPages();
+    let acordes = 0, linhasAfetadas = 0, invisiveis = 0, visiveis = 0;
+    /** @type {Map<string, import("mupdf").PDFObject>} fonte base-14 → objeto, compartilhado entre páginas */
+    const fontesDoc = new Map();
+    for (let i = 0; i < total; i++) {
+      aoProgredir(i + 1, total);
+      const pagina = doc.loadPage(i);
+      try {
+        const c = coletarLinhas(mupdf, pagina); // coordenadas coletadas ANTES de qualquer mutação
+        invisiveis += c.invisiveis;
+        visiveis += c.visiveis;
+        const r = detectarSubstituicoes(c.linhas, n);
+        if (r.substituicoes.length === 0) continue;
+        const subs = r.substituicoes.map((s) => ({ ...s.token, textoNovo: s.textoNovo }));
+        apagarTokens(mupdf, pagina, subs);
+        reinserir(mupdf, doc, pagina, subs, fontesDoc);
+        acordes += subs.length;
+        linhasAfetadas += r.linhasAfetadas;
+      } finally {
+        pagina.destroy();
+      }
+    }
+    // Só "digitalizado" se o texto é MAJORITARIAMENTE invisível — um PDF comum com uma
+    // marca d'água oculta não deve receber essa mensagem.
+    if (acordes === 0 && invisiveis > visiveis) {
+      throw new Error("Este PDF parece ser digitalizado (o texto é só uma camada invisível de OCR) — não dá para transpor.");
+    }
+    if (acordes === 0) throw new Error("Nenhum acorde detectado");
 
-  const total = doc.countPages();
-  let acordes = 0, linhasAfetadas = 0;
-  for (let i = 0; i < total; i++) {
-    aoProgredir(i + 1, total);
-    const pagina = doc.loadPage(i);
-    const linhas = coletarLinhas(pagina); // coordenadas coletadas ANTES de qualquer mutação
-    const r = detectarSubstituicoes(linhas, n);
-    if (r.substituicoes.length === 0) continue;
-    const subs = r.substituicoes.map((s) => ({ ...s.token, textoNovo: s.textoNovo }));
-    apagarTokens(mupdf, pagina, subs);
-    reinserir(mupdf, doc, pagina, subs);
-    acordes += subs.length;
-    linhasAfetadas += r.linhasAfetadas;
+    const buffer = doc.saveToBuffer("garbage,compress");
+    // .slice(): asUint8Array é uma view do heap WASM — copiar antes de transferir.
+    const bytes = buffer.asUint8Array().slice();
+    buffer.destroy();
+    return { dados: bytes, acordes, linhas: linhasAfetadas };
+  } finally {
+    doc.destroy();
   }
-  if (acordes === 0) throw new Error("Nenhum acorde detectado");
-
-  // .slice(): asUint8Array é uma view do heap WASM — copiar antes de transferir.
-  const bytes = doc.saveToBuffer("garbage,compress").asUint8Array().slice();
-  return { dados: bytes, acordes, linhas: linhasAfetadas };
 }
 
 /**
- * Linhas de tokens da página, com origem/quads/fonte/tamanho/cor por token.
- * @param {import("mupdf").PDFPage} pagina
- * @returns {Token[][]}
+ * Origens dos glifos INVISÍVEIS da página (modo 3 Tr — camada de OCR de PDF digitalizado),
+ * que o interpretador manda para `ignoreText`. O structured text inclui esse texto, e
+ * transpô-lo desenharia o acorde novo VISÍVEL por cima do antigo, que está na imagem.
+ * Chave = caractere + origem numa grade de 0,5 pt (mesmo espaço do walk).
+ * @param {Mupdf} mupdf @param {import("mupdf").PDFPage} pagina
  */
-function coletarLinhas(pagina) {
+function glifosInvisiveis(mupdf, pagina) {
+  /** @type {Set<string>} */
+  const chaves = new Set();
+  const dispositivo = new mupdf.Device({
+    ignoreText(texto, ctm) {
+      texto.walk({
+        showGlyph(_fonte, trm, _glifo, unicode) {
+          const x = trm[4] * ctm[0] + trm[5] * ctm[2] + ctm[4];
+          const y = trm[4] * ctm[1] + trm[5] * ctm[3] + ctm[5];
+          chaves.add(`${String.fromCodePoint(unicode)}@${Math.round(x * 2)},${Math.round(y * 2)}`);
+        },
+      });
+    },
+  });
+  try {
+    pagina.run(dispositivo, mupdf.Matrix.identity);
+    dispositivo.close();
+  } finally {
+    dispositivo.destroy();
+  }
+  return chaves;
+}
+
+/**
+ * Linhas de tokens da página, com origem/quads/fonte/tamanho/cor por token. Caracteres invisíveis (OCR) contam como espaço — ficam fora dos tokens.
+ * @param {Mupdf} mupdf @param {import("mupdf").PDFPage} pagina
+ * @returns {{ linhas: Token[][], invisiveis: number, visiveis: number }}
+ */
+function coletarLinhas(mupdf, pagina) {
+  const invisivel = glifosInvisiveis(mupdf, pagina);
+  let invisiveis = 0, visiveis = 0;
+  /** @param {string} c @param {number[]} o */
+  const ehInvisivel = (c, o) => {
+    if (invisivel.size === 0) return false;
+    const gx = Math.round(o[0] * 2), gy = Math.round(o[1] * 2);
+    for (const dx of [0, -1, 1]) for (const dy of [0, -1, 1]) {
+      if (invisivel.has(`${c}@${gx + dx},${gy + dy}`)) return true;
+    }
+    return false;
+  };
   /** @type {Token[][]} */
   const linhas = [];
   /** @type {Token[]} */
@@ -68,45 +129,53 @@ function coletarLinhas(pagina) {
   let direcao = [1, 0];
   const fecharToken = () => { if (atual && atual.texto) linha.push(atual); atual = null; };
   const fecharLinha = () => { fecharToken(); if (linha.length) linhas.push(linha); linha = []; };
-  pagina.toStructuredText().walk({
-    beginLine(bbox, wmode, dir) { fecharLinha(); direcao = dir; },
-    onChar(c, origem, fonte, tamanho, quad, cor) {
-      if (c.trim() === "") { fecharToken(); return; }
-      if (!atual) {
-        atual = {
-          texto: "",
-          origem: { x: origem[0], y: origem[1] }, direcao,
-          quads: [], tamanho, cor, // na 1.27.0 cor = RGB 3 componentes 0–1, sempre
-          fonte: { mono: fonte.isMono(), serifa: fonte.isSerif(), negrito: fonte.isBold(), italico: fonte.isItalic() },
-        };
-      }
-      atual.texto += c;
-      atual.quads.push(quad);
-    },
-    endLine: fecharLinha,
-  });
+  const stext = pagina.toStructuredText("");
+  try {
+    stext.walk({
+      beginLine(bbox, wmode, dir) { fecharLinha(); direcao = dir; },
+      onChar(c, origem, fonte, tamanho, quad, cor) {
+        if (c.trim() === "") { fecharToken(); return; }
+        if (ehInvisivel(c, origem)) { invisiveis++; fecharToken(); return; }
+        visiveis++;
+        if (!atual) {
+          atual = {
+            texto: "", origem: { x: origem[0], y: origem[1] }, direcao, quads: [],
+            tamanho, cor: [...cor], // na 1.28 cor = RGB 3 componentes 0–1, sempre (o union do .d.ts engana)
+            fonte: { mono: fonte.isMono(), serifa: fonte.isSerif(), negrito: fonte.isBold(), italico: fonte.isItalic() },
+          };
+        }
+        atual.texto += c;
+        atual.quads.push(quad);
+      },
+      endLine: fecharLinha,
+    });
+  } finally {
+    stext.destroy();
+  }
   fecharLinha();
-  return linhas;
+  return { linhas, invisiveis, visiveis };
 }
 
 /**
  * Retângulo de redação do acorde: cobre a LARGURA do token ao longo do eixo de
  * leitura (extremos dos quads projetados na direção), mas no eixo da ENTRELINHA
- * usa uma BANDA justa ancorada na baseline (origem ± fração do tamanho da fonte),
- * não a altura do quad. Motivo: o quad da structured-text inclui ascent+descent
- * e costuma ser MAIS ALTO que o espaçamento entre linhas, então um encolhimento
- * por fração do quad ainda invade a linha vizinha em cifras de espaçamento
- * apertado — e o REDACT_TEXT_REMOVE apaga todo glifo que o retângulo intercepta,
- * comendo a letra. A banda pela baseline nunca alcança a vizinha se o espaçamento
- * for ≥ ~1 tamanho de fonte (sempre, em cifras reais). Como a redação só precisa
- * INTERCEPTAR o glifo antigo para removê-lo, uma banda justa basta.
- * `acima`/`abaixo` são frações do tamanho (ascent/descent do acorde). Direcional:
- * cobre /Rotate por projeção nos eixos leitura/perpendicular. Espaço MuPDF, sem conversão.
+ * usa uma BANDA estreita no meio do corpo do glifo, não a altura do quad.
+ * Motivo: o REDACT_TEXT_REMOVE apaga todo glifo cuja caixa INTERCEPTA o
+ * retângulo, e essa caixa vem das métricas da fonte (ascent/descent), não da
+ * tinta — a da letra de baixo sobe quase 1 tamanho acima da sua baseline, a da
+ * letra de cima desce ~0.25. Medido em fixtures (Helvetica/Times/Courier/bold):
+ * a banda antiga [baseline, +0.7] comia letra com entrelinha ≤ 0.85× o tamanho;
+ * a banda [+0.25, +0.5] preserva a letra até 0.75× e continua interceptando
+ * todo glifo do acorde (inclusive `.`, `,`, `-`, `º`), porque a caixa de
+ * qualquer glifo vai do descent ao ascent. Validado no acervo real (568 PDFs).
+ * `acima`/`abaixo` são frações do tamanho a partir da baseline (`abaixo`
+ * negativo = a banda começa acima da baseline). Direcional: cobre /Rotate por
+ * projeção nos eixos leitura/perpendicular. Espaço MuPDF, sem conversão.
  * @param {number[][]} quads @param {number[]} direcao
  * @param {{x: number, y: number}} origem @param {number} tamanho
  * @returns {[number, number, number, number]}
  */
-function retanguloDe(quads, direcao, origem, tamanho, acima = 0.7, abaixo = 0.0) {
+function retanguloDe(quads, direcao, origem, tamanho, acima = 0.5, abaixo = -0.25) {
   const mag = Math.hypot(direcao[0], direcao[1]) || 1;
   const dir = [direcao[0] / mag, direcao[1] / mag];
   const up = [dir[1], -dir[0]]; // perpendicular; +up = ascent (fitz y-baixo)
@@ -209,8 +278,10 @@ function prepararFontes(doc, paginaObj) {
  * estado de texto (0 Tc 0 Tw 100 Tz 0 Ts 0 Tr) antes do BT.
  * @param {Mupdf} mupdf @param {import("mupdf").PDFDocument} doc
  * @param {import("mupdf").PDFPage} pagina @param {Substituicao[]} subs
+ * @param {Map<string, import("mupdf").PDFObject>} fontesDoc — cache por documento: um objeto
+ *   de fonte por base-14, referenciado por todas as páginas (sem duplicar por página)
  */
-function reinserir(mupdf, doc, pagina, subs) {
+function reinserir(mupdf, doc, pagina, subs, fontesDoc) {
   const paginaObj = pagina.getObject();
   const fontes = prepararFontes(doc, paginaObj);
   /** @type {Map<string, string>} */
@@ -218,7 +289,12 @@ function reinserir(mupdf, doc, pagina, subs) {
   const registrar = (/** @type {string} */ base14) => {
     let i = 0, nome = "TRq0";
     while (fontes.get(nome) && !fontes.get(nome).isNull()) nome = "TRq" + ++i;
-    fontes.put(nome, doc.addSimpleFont(new mupdf.Font(base14), "Latin"));
+    let objeto = fontesDoc.get(base14);
+    if (!objeto) {
+      objeto = doc.addSimpleFont(new mupdf.Font(base14), "Latin");
+      fontesDoc.set(base14, objeto);
+    }
+    fontes.put(nome, objeto);
     return nome;
   };
   const M = pagina.getTransform();
@@ -248,7 +324,7 @@ function reinserir(mupdf, doc, pagina, subs) {
 // jsconfig, e em Node (testes) esses globals nem existem.
 const ctx = /** @type {any} */ (globalThis);
 if (typeof ctx.WorkerGlobalScope !== "undefined" && globalThis instanceof ctx.WorkerGlobalScope) {
-  const URL_MUPDF = "https://cdn.jsdelivr.net/npm/mupdf@1.27.0/dist/mupdf.js";
+  const URL_MUPDF = "https://cdn.jsdelivr.net/npm/mupdf@1.28.1/dist/mupdf.js";
   /** @type {Promise<Mupdf> | null} */
   let carregando = null;
   // import() com URL em variável: o language server não tenta resolver; o cast dá os tipos da devDependency.
@@ -256,6 +332,9 @@ if (typeof ctx.WorkerGlobalScope !== "undefined" && globalThis instanceof ctx.Wo
   // uma promise rejeitada cacheada refalharia para sempre até recarregar a página.
   const carregarMupdf = () => (carregando ??= /** @type {Promise<Mupdf>} */ (
     import(URL_MUPDF).catch((e) => { carregando = null; throw e; })));
+  // Pré-carga: os ~10 MB do WASM baixam enquanto o usuário escolhe o arquivo, não no clique.
+  // Falha aqui é silenciosa — o clique retenta e aí reporta o erro.
+  carregarMupdf().catch(() => {});
 
   ctx.onmessage = async (/** @type {MessageEvent} */ ev) => {
     const { dados, n } = ev.data;
@@ -265,7 +344,11 @@ if (typeof ctx.WorkerGlobalScope !== "undefined" && globalThis instanceof ctx.Wo
         (pagina, total) => ctx.postMessage({ tipo: "progresso", pagina, total }));
       ctx.postMessage({ tipo: "ok", dados: r.dados, acordes: r.acordes, linhas: r.linhas }, [r.dados.buffer]);
     } catch (e) {
-      ctx.postMessage({ tipo: "erro", mensagem: e instanceof Error ? e.message : String(e) });
+      const mensagem = e instanceof Error ? e.message : String(e);
+      // Falha de rede no import do CDN: a mensagem crua do navegador não ajuda o usuário.
+      ctx.postMessage({ tipo: "erro", mensagem: carregando === null
+        ? "Não foi possível baixar o componente de PDF — verifique a conexão e tente de novo."
+        : mensagem });
     }
   };
 }

@@ -67,3 +67,44 @@ test("progresso é reportado por página", () => {
   transporPdf(mupdf, bytesDe(criarPdf(LINHAS_CIFRA)), 2, (pagina, total) => chamadas.push([pagina, total]));
   assert.deepEqual(chamadas, [[1, 1]]);
 });
+
+test("entrelinha apertada (0.82× a fonte): a redação não come a letra vizinha", () => {
+  // Regressão: a banda antiga [baseline, +0.7] comia letra com entrelinha ≤ 0.85×.
+  const r = transporPdf(mupdf, bytesDe(criarPdf(LINHAS_CIFRA, { entrelinha: 9 })), 2);
+  const doc = abrir(r.dados);
+  const texto = extrairTexto(doc);
+  assert.match(texto, /A menina que passa danca/);
+  assert.match(texto, /E o vento leva a saudade/);
+  const tokens = extrairTokens(doc).map((t) => t.texto);
+  for (const antigo of ["G", "D/F#", "Em", "C#m7(b5)", "Dº"]) assert.ok(!tokens.includes(antigo), `fantasma ${antigo}`);
+  assert.equal(r.acordes, 12);
+});
+
+test("PDF digitalizado com OCR (texto invisível): erro claro, nada reinserido por cima da imagem", () => {
+  assert.throws(() => transporPdf(mupdf, bytesDe(criarPdf(LINHAS_CIFRA, { invisivel: true })), 2), /digitalizado/);
+});
+
+test("acordes colados: cada pedaço é reinserido na posição do original", () => {
+  const linha = ["E   B7   AE"]; // B7: acorde forte (sem ele, "E A AE" poderia ser letra)
+  const antes = extrairTokens(criarPdf(linha));
+  const depois = extrairTokens(abrir(transporPdf(mupdf, bytesDe(criarPdf(linha)), 2).dados));
+  const ae = antes.find((t) => t.texto === "AE");
+  // os pedaços B e F# encostam (como A e E encostavam) e extraem como um token só
+  const novo = depois.find((t) => t.texto === "BF#");
+  assert.ok(ae && novo, `tokens: ${depois.map((t) => t.texto)}`);
+  assert.ok(Math.abs(novo.x - ae.x) < 0.7 && Math.abs(novo.y - ae.y) < 0.7, "B no lugar do A colado");
+  assert.ok(!depois.some((t) => t.texto === "AE"), "fantasma AE");
+});
+
+test("várias páginas reusam o mesmo objeto de fonte (sem duplicar por página)", () => {
+  const r = transporPdf(mupdf, bytesDe(criarPdf(LINHAS_CIFRA, { paginas: 3 })), 2);
+  const doc = abrir(r.dados);
+  const nums = [0, 1, 2].map((i) => doc.loadPage(i).getObject().get("Resources").get("Font").get("TRq0").asIndirect());
+  assert.equal(new Set(nums).size, 1, `objetos: ${nums}`);
+  assert.equal(r.acordes, 36);
+});
+
+test("texto invisível minoritário (marca d'água oculta) não vira mensagem de PDF digitalizado", () => {
+  const r = criarPdf(["Documento sem nenhum acorde.", "So texto comum aqui."], { posambulo: "BT 3 Tr /F1 11 Tf 50 100 Td (marca) Tj ET\n" });
+  assert.throws(() => transporPdf(mupdf, bytesDe(r), 2), /^Error: Nenhum acorde detectado$/);
+});

@@ -30,10 +30,14 @@ const lit = (s) => "(" + [...s].map((ch) => {
 
 /**
  * @param {string[]} linhas
- * @param {{rotate?: import("mupdf").Rotate, posambulo?: string, linhaArte?: boolean}} [opcoes]
+ * @param {{rotate?: import("mupdf").Rotate, posambulo?: string, linhaArte?: boolean,
+ *   entrelinha?: number, invisivel?: boolean, paginas?: number}} [opcoes]
+ *   entrelinha: TL em pt (fonte 11pt); invisivel: texto em 3 Tr (camada de OCR);
+ *   paginas: repete o conteúdo em N páginas
  * @returns {mupdf.PDFDocument}
  */
-export function criarPdf(linhas, { rotate = 0, posambulo = "", linhaArte = false } = {}) {
+export function criarPdf(linhas, { rotate = 0, posambulo = "", linhaArte = false, entrelinha = 12,
+  invisivel = false, paginas = 1 } = {}) {
   const doc = new mupdf.PDFDocument();
   const fonte = doc.addSimpleFont(new mupdf.Font("Courier"), "Latin");
   const fontes = doc.newDictionary();
@@ -41,11 +45,10 @@ export function criarPdf(linhas, { rotate = 0, posambulo = "", linhaArte = false
   const recursos = doc.newDictionary();
   recursos.put("Font", fontes);
   let corpo = linhaArte ? "0.5 w 50 774 m 545 774 l S\n" : "";
-  corpo += "BT /F1 11 Tf 12 TL 50 780 Td\n";
+  corpo += `BT ${invisivel ? "3 Tr " : ""}/F1 11 Tf ${entrelinha} TL 50 780 Td\n`;
   for (const l of linhas) corpo += lit(l) + " Tj T*\n";
   corpo += "ET\n" + posambulo;
-  const pagina = doc.addPage([0, 0, 595, 842], rotate, recursos, corpo);
-  doc.insertPage(-1, pagina);
+  for (let i = 0; i < paginas; i++) doc.insertPage(-1, doc.addPage([0, 0, 595, 842], rotate, recursos, corpo));
   return doc;
 }
 

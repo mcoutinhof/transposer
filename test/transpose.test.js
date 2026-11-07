@@ -1,7 +1,7 @@
 // @ts-check
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ehAcorde, transporAcorde, transporNota } from "../transpose.js";
+import { ehAcorde, ehNotaMinuscula, transporAcorde, transporNota, transporNotaMinuscula } from "../transpose.js";
 
 test("gramática aceita o vocabulário brasileiro", () => {
   for (const t of ["Em", "C#m7(b5)", "G/B", "A7M(9)", "Dº", "E4", "Gsus4", "Bb", "Am7b5",
@@ -52,4 +52,20 @@ test("transpõe raiz e baixo; sufixo verbatim", () => {
 
 test("token que não casa a gramática volta intacto", () => {
   assert.equal(transporAcorde("menina", 3), "menina");
+});
+
+test("'/' seguido de número é extensão, não baixo (G6/9, A7/9, Bm7/5-)", () => {
+  for (const t of ["G6/9", "A7/9", "Bm7/5-", "C7/b9", "E7/9-"]) assert.ok(ehAcorde(t), `deveria aceitar ${t}`);
+  assert.equal(transporAcorde("G6/9", 2), "A6/9");
+  assert.equal(transporAcorde("Bm7/5-", 1), "Cm7/5-");
+  assert.equal(transporAcorde("A7/9/C#", 1), "Bb7/9/D"); // extensão + baixo
+  assert.ok(!ehAcorde("C/9x"));
+});
+
+test("nota avulsa minúscula: transpõe preservando a caixa; 'a'/'e' nus são palavras", () => {
+  for (const t of ["f#", "g#", "c#", "bb", "eb", "g", "c", "d"]) assert.ok(ehNotaMinuscula(t), `deveria aceitar ${t}`);
+  for (const t of ["a", "e", "em", "f#m", "G"]) assert.ok(!ehNotaMinuscula(t), `deveria rejeitar ${t}`);
+  assert.equal(transporNotaMinuscula("f#", 2), "g#");
+  assert.equal(transporNotaMinuscula("g#", 2), "bb");
+  assert.equal(transporNotaMinuscula("g", 2), "a");
 });

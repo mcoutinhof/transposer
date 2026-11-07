@@ -7,7 +7,9 @@ const RE_NOTA = "[A-G](?:#|b)?";
 // Dígito único de propósito: sob o `*` externo, [0-9] aceita exatamente a mesma
 // linguagem que [0-9]{1,2} — e a forma {1,2} é ambígua, causando backtracking
 // exponencial em tokens como "C777…7z" (PDF é entrada arbitrária do usuário).
-const RE_ATOMO = "(?:maj|min|dim|aug|sus|add|m|M|\\+|-|º|°|ø|#|b|[0-9]|\\(|\\)|,|\\.)";
+// `/` seguido de número/alteração é extensão, não baixo: G6/9, A7/9, Bm7/5-, C7/b9
+// (o baixo é sempre nota MAIÚSCULA, então não há ambiguidade).
+const RE_ATOMO = "(?:maj|min|dim|aug|sus|add|m|M|\\+|-|º|°|ø|#|b|[0-9]|\\(|\\)|,|\\.|\\/(?=[0-9#b+-]))";
 const RE_ACORDE = new RegExp(`^(${RE_NOTA})(${RE_ATOMO}*)(/${RE_NOTA})?$`);
 
 /** Mapa de saída fixo: sustenidos sempre, exceto Bb. */
@@ -46,4 +48,21 @@ export function transporAcorde(acorde, n) {
   const [, raiz, sufixo = "", baixo] = m;
   const novoBaixo = baixo ? "/" + transporNota(baixo.slice(1), n) : "";
   return transporNota(raiz, n) + sufixo + novoBaixo;
+}
+
+/** Nota avulsa minúscula (baixo caminhante, notas de passagem): f#, g#, bb, c, g. */
+const RE_NOTA_MINUSCULA = /^(?:[a-g][#b]|[bcdfg])$/; // "a"/"e" nus de fora: são palavras do português
+
+/** @param {string} token */
+export function ehNotaMinuscula(token) {
+  return RE_NOTA_MINUSCULA.test(token);
+}
+
+/**
+ * Transpõe nota avulsa minúscula preservando a caixa: f# +1 → g, g +2 → a, g# +2 → bb.
+ * @param {string} nota @param {number} n
+ */
+export function transporNotaMinuscula(nota, n) {
+  const t = transporNota(nota[0].toUpperCase() + nota.slice(1), n);
+  return t[0].toLowerCase() + t.slice(1);
 }

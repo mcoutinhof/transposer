@@ -1,11 +1,13 @@
 // @ts-check
-// Lógica da página: seleção de arquivo, semitons, worker, download.
+// Lógica da página: seleção de arquivo, tom, worker, download.
 const ROTULO_PADRAO = "Arraste um PDF de cifra aqui ou clique para escolher";
 
 const entrada = /** @type {HTMLInputElement} */ (document.getElementById("arquivo"));
 const area = /** @type {HTMLElement} */ (document.getElementById("area"));
 const rotulo = /** @type {HTMLElement} */ (document.getElementById("rotulo"));
-const semitons = /** @type {HTMLInputElement} */ (document.getElementById("semitons"));
+const abaixar = /** @type {HTMLButtonElement} */ (document.getElementById("abaixar"));
+const subir = /** @type {HTMLButtonElement} */ (document.getElementById("subir"));
+const valor = /** @type {HTMLElement} */ (document.getElementById("valor"));
 const botao = /** @type {HTMLButtonElement} */ (document.getElementById("transpor"));
 const status = /** @type {HTMLElement} */ (document.getElementById("status"));
 
@@ -15,13 +17,27 @@ const worker = new Worker("./worker.js", { type: "module" });
 let arquivo = null;
 /** @type {{ nome: string, n: number } | null} — captura no clique; usuário pode mexer na UI durante o processamento */
 let emCurso = null;
+/** Semitons. ±6 basta: a cifra não tem oitava, então +7 dá o mesmo PDF que −5. */
+let n = 0;
+const LIMITE = 6;
 
-function lerN() {
-  const v = Number(semitons.value);
-  return Number.isInteger(v) && v >= -11 && v <= 11 ? v : 0;
+/**
+ * Na língua do cantor, sem "semitom": 3 → "Subir 1 tom e meio", −1 → "Abaixar meio tom".
+ * @param {number} n
+ */
+function descrever(n) {
+  if (n === 0) return "Tom original";
+  const tons = Math.floor(Math.abs(n) / 2);
+  const meio = Math.abs(n) % 2 === 1;
+  const quanto = tons === 0 ? "meio tom" : `${tons} ${tons === 1 ? "tom" : "tons"}${meio ? " e meio" : ""}`;
+  return `${n > 0 ? "Subir" : "Abaixar"} ${quanto}`;
 }
 function atualizar() {
-  botao.disabled = emCurso !== null || !arquivo || lerN() === 0;
+  valor.textContent = descrever(n);
+  valor.classList.toggle("original", n === 0);
+  abaixar.disabled = n <= -LIMITE;
+  subir.disabled = n >= LIMITE;
+  botao.disabled = emCurso !== null || !arquivo || n === 0;
 }
 function avisar(/** @type {string} */ mensagem, ehErro = false) {
   status.textContent = mensagem;
@@ -47,11 +63,12 @@ area.addEventListener("drop", (e) => {
   area.classList.remove("arrastando");
   escolher(e.dataTransfer?.files?.[0]);
 });
-semitons.addEventListener("input", atualizar);
+abaixar.addEventListener("click", () => { n = Math.max(n - 1, -LIMITE); atualizar(); });
+subir.addEventListener("click", () => { n = Math.min(n + 1, LIMITE); atualizar(); });
 
 botao.addEventListener("click", async () => {
-  if (!arquivo || lerN() === 0 || emCurso) return;
-  emCurso = { nome: arquivo.name, n: lerN() };
+  if (!arquivo || n === 0 || emCurso) return;
+  emCurso = { nome: arquivo.name, n };
   atualizar();
   avisar("Carregando…");
   try {

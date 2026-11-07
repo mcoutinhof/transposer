@@ -4,3 +4,4 @@ test/fixtures/real/
 test/spike/saida/
 .npm-cache/
 .playwright-mcp/
+.superpowers/

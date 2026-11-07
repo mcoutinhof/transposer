@@ -1,9 +1,9 @@
 # Transposer
 
 Transpõe cifras em PDF direto no navegador: selecione um PDF textual de cifra
-(formato clássico: linha de acordes sobre a letra), escolha quantos semitons
-transpor (±11) e baixe o PDF editado — formatação intacta, nada sai da sua
-máquina (100% client-side, sem backend).
+(formato clássico: linha de acordes sobre a letra), escolha quanto subir ou
+abaixar o tom (de meio em meio tom, até 3 tons) e baixe o PDF editado —
+formatação intacta, nada sai da sua máquina (100% client-side, sem backend).
 
 ## Uso
 

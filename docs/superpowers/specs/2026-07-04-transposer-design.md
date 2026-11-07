@@ -102,7 +102,7 @@ Sem paranoia (decisão do usuário: fallback resolve). **A v1 usa sempre fonte b
 
 ## UI
 
-Uma tela: input de arquivo (com drag-drop), stepper de semitons (−11…+11, default 0), botão **Transpor** (desabilitado sem arquivo ou com n=0), linha de status (`Processando página i/n…`, erros). Ao concluir, download automático e resumo na linha de status — `N acordes transpostos em M linhas` — o sinal mínimo para o usuário desconfiar de resultado parcial (linhas não reconhecidas ficam intactas em silêncio). Sem preview.
+Uma tela: input de arquivo (com drag-drop), stepper − / + de meio em meio tom (−6…+6 semitons, default 0), rotulado na língua do cantor leigo — "Tom original", "Subir meio tom", "Abaixar 1 tom e meio"…, nunca "semitom"; ±6 basta porque a cifra não tem oitava (+7 dá o mesmo PDF que −5), botão **Transpor** (desabilitado sem arquivo ou com n=0), linha de status (`Processando página i/n…`, erros). Ao concluir, download automático e resumo na linha de status — `N acordes transpostos em M linhas` — o sinal mínimo para o usuário desconfiar de resultado parcial (linhas não reconhecidas ficam intactas em silêncio). Sem preview.
 
 ## Erros e casos-limite
 

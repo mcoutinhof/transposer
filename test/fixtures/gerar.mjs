@@ -31,15 +31,21 @@ const lit = (s) => "(" + [...s].map((ch) => {
 /**
  * @param {string[]} linhas
  * @param {{rotate?: import("mupdf").Rotate, posambulo?: string, linhaArte?: boolean,
- *   entrelinha?: number, invisivel?: boolean, paginas?: number}} [opcoes]
+ *   entrelinha?: number, invisivel?: boolean, paginas?: number,
+ *   fonte?: mupdf.Font, baseFont?: string}} [opcoes]
  *   entrelinha: TL em pt (fonte 11pt); invisivel: texto em 3 Tr (camada de OCR);
- *   paginas: repete o conteúdo em N páginas
+ *   paginas: repete o conteúdo em N páginas; fonte: embutida no lugar da Courier;
+ *   baseFont: nome com que ela aparece no PDF (simula outra fonte, ex. "BAAAAA+LiberationMono-Bold")
  * @returns {mupdf.PDFDocument}
  */
 export function criarPdf(linhas, { rotate = 0, posambulo = "", linhaArte = false, entrelinha = 12,
-  invisivel = false, paginas = 1 } = {}) {
+  invisivel = false, paginas = 1, fonte: fz = new mupdf.Font("Courier"), baseFont } = {}) {
   const doc = new mupdf.PDFDocument();
-  const fonte = doc.addSimpleFont(new mupdf.Font("Courier"), "Latin");
+  const fonte = doc.addSimpleFont(fz, "Latin");
+  if (baseFont) {
+    fonte.put("BaseFont", doc.newName(baseFont));
+    fonte.get("FontDescriptor").put("FontName", doc.newName(baseFont));
+  }
   const fontes = doc.newDictionary();
   fontes.put("F1", fonte);
   const recursos = doc.newDictionary();

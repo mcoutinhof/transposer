@@ -37,6 +37,9 @@ Zero build: os arquivos são servidos como estão (MuPDF.js vem do CDN, pinado).
     npm install   # devDependencies: mupdf (testes) + tipos
     npm test      # node --test
 
+Fontes dos acordes (Open Sans e Liberation Mono reduzidas): `fontes/`, geradas por
+`ferramentas/gerar-fontes.sh`.
+
 Design: `docs/superpowers/specs/2026-07-04-transposer-design.md`.
 Spike de validação: `test/spike/RESULTADO.md`.
 

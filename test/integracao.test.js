@@ -5,7 +5,7 @@ import * as mupdf from "mupdf";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { transporPdf } from "../worker.js";
+import { transporPdf, FONTES_HOSPEDADAS, fontesHospedadasDoPdf } from "../worker.js";
 import { criarPdf, salvar, LINHAS_CIFRA } from "./fixtures/gerar.mjs";
 import { extrairTexto, extrairTokens } from "./util.mjs";
 
@@ -107,4 +107,89 @@ test("várias páginas reusam o mesmo objeto de fonte (sem duplicar por página)
 test("texto invisível minoritário (marca d'água oculta) não vira mensagem de PDF digitalizado", () => {
   const r = criarPdf(["Documento sem nenhum acorde.", "So texto comum aqui."], { posambulo: "BT 3 Tr /F1 11 Tf 50 100 Td (marca) Tj ET\n" });
   assert.throws(() => transporPdf(mupdf, bytesDe(r), 2), /^Error: Não achei acordes/);
+});
+
+/** Fonte de cada token do PDF (nome como o MuPDF reporta). */
+const fontesDosTokens = (/** @type {mupdf.PDFDocument} */ doc) => {
+  /** @type {Map<string, string>} */
+  const m = new Map();
+  let texto = "", nome = "";
+  const fechar = () => { if (texto) m.set(texto, nome); texto = ""; };
+  doc.loadPage(0).toStructuredText("").walk({
+    onChar(c, _o, f) { if (c.trim() === "") { fechar(); return; } if (!texto) nome = f.getName(); texto += c; },
+    endLine: fechar,
+  });
+  return m;
+};
+
+test("fonte hospedada: acorde novo sai na cópia da fonte original", () => {
+  // Simula o PDF do LibreOffice: fonte embutida com nome de subconjunto "BAAAAA+LiberationMono-Bold".
+  const ttf = new Uint8Array(readFileSync(new URL("../fontes/TransposerMono-Bold.ttf", import.meta.url)));
+  const original = () => bytesDe(criarPdf(["G   D/F#   Em", "A menina que passa"],
+    { fonte: new mupdf.Font("TransposerMono-Bold", ttf), baseFont: "BAAAAA+LiberationMono-Bold" }));
+  const hospedadas = new Map([[FONTES_HOSPEDADAS["LiberationMono-Bold"], ttf]]);
+  const saida = abrir(transporPdf(mupdf, original(), 2, undefined, hospedadas).dados);
+  const com = fontesDosTokens(saida);
+  // prefixo de subconjunto: a fonte embutida só tem os caracteres usados
+  assert.match(com.get("F#m") ?? "", /^[A-Z]{6}\+TransposerMono-Bold$/);
+  assert.equal(com.get("E/G#"), com.get("F#m"));
+  assert.equal(com.get("menina"), "BAAAAA+LiberationMono-Bold", "letra intacta");
+  const arquivo = saida.loadPage(0).getObject().get("Resources").get("Font").get("TRq0")
+    .get("FontDescriptor").get("FontFile2").readStream().getLength();
+  assert.ok(arquivo < 3000, `fonte embutida com ${arquivo} bytes (inteira tem ~9 KB)`);
+  // Sem a cópia (download falhou) ou com bytes que não são fonte (portal de Wi-Fi):
+  // fonte padrão do PDF, sem erro.
+  const sem = fontesDosTokens(abrir(transporPdf(mupdf, original(), 2).dados));
+  assert.match(sem.get("F#m") ?? "", /^Courier/);
+  const lixo = new Map([[FONTES_HOSPEDADAS["LiberationMono-Bold"], new TextEncoder().encode("<html>login</html>")]]);
+  const invalida = fontesDosTokens(abrir(transporPdf(mupdf, original(), 2, undefined, lixo).dados));
+  assert.match(invalida.get("F#m") ?? "", /^Courier/);
+});
+
+test("todo arquivo de FONTES_HOSPEDADAS existe e cobre tudo o que o worker escreve", () => {
+  // ASCII imprimível + Latin-1 (fora disso o worker escreve "?"). Cobertura completa = a
+  // escolha entre hospedada e base-14 nunca varia de um acorde para outro da mesma fonte.
+  const faixa = (/** @type {number} */ a, /** @type {number} */ b) => Array.from({ length: b - a + 1 }, (_, i) => String.fromCodePoint(a + i));
+  const chars = [...faixa(0x20, 0x7e), ...faixa(0xa0, 0xff)];
+  for (const arq of new Set(Object.values(FONTES_HOSPEDADAS))) {
+    const f = new mupdf.Font(arq, new Uint8Array(readFileSync(new URL("../fontes/" + arq, import.meta.url))));
+    const faltam = chars.filter((ch) => f.encodeCharacter(ch) === 0);
+    assert.deepEqual(faltam, [], `${arq} sem glifo para ${faltam.join(" ")}`);
+  }
+});
+
+test("fontesHospedadasDoPdf: só as fontes declaradas no PDF, inclusive Type0 (Cifra Club)", () => {
+  const ttf = new Uint8Array(readFileSync(new URL("../fontes/TransposerMono-Bold.ttf", import.meta.url)));
+  const simples = bytesDe(criarPdf(["G D Em"],
+    { fonte: new mupdf.Font("TransposerMono-Bold", ttf), baseFont: "BAAAAA+LiberationMono-Bold" }));
+  assert.deepEqual(fontesHospedadasDoPdf(mupdf, simples), ["TransposerMono-Bold.ttf"]);
+  assert.deepEqual(fontesHospedadasDoPdf(mupdf, bytesDe(criarPdf(["G D Em"]))), [], "Courier: nada a baixar");
+  assert.deepEqual(fontesHospedadasDoPdf(mupdf, new TextEncoder().encode("não é PDF")), []);
+  // Type0 como o da Cifra Club: dicionário principal SEM FontDescriptor (fica no descendente),
+  // e uma segunda fonte depois dela, que a varredura não pode pular.
+  const doc = criarPdf(["G D Em"]);
+  const t0 = doc.addFont(new mupdf.Font("TransposerMono-Bold", ttf));
+  t0.put("BaseFont", doc.newName("OpenSans-Bold"));
+  t0.get("DescendantFonts").get(0).put("BaseFont", doc.newName("OpenSans-Bold"));
+  const fontes = doc.loadPage(0).getObject().get("Resources").get("Font");
+  fontes.put("F0", t0);
+  fontes.put("F2", doc.addSimpleFont(new mupdf.Font("TransposerMono-Bold", ttf), "Latin"));
+  fontes.get("F2").put("BaseFont", doc.newName("OpenSans-Regular"));
+  assert.deepEqual(fontesHospedadasDoPdf(mupdf, bytesDe(doc)).sort(), ["OpenSans-Bold.ttf", "OpenSans-Regular.ttf"]);
+});
+
+test("fontesHospedadasDoPdf: Form XObject que se referencia não interrompe a varredura", () => {
+  const doc = criarPdf(["G D Em"], { paginas: 2 });
+  // página 1: Form cujo /Resources (direto) aponta para o próprio Form
+  const form = doc.addStream("", { Type: "XObject", Subtype: "Form", BBox: [0, 0, 10, 10] });
+  const res = doc.newDictionary(), xs = doc.newDictionary();
+  xs.put("X", form); res.put("XObject", xs); form.put("Resources", res);
+  const p1 = doc.loadPage(0).getObject();
+  const r1 = doc.newDictionary(); r1.put("XObject", xs); p1.put("Resources", r1);
+  // página 2: a fonte que precisa ser achada depois do ciclo
+  const f = doc.addSimpleFont(new mupdf.Font("Courier"), "Latin");
+  f.put("BaseFont", doc.newName("OpenSans-Bold"));
+  const r2 = doc.newDictionary(), fs = doc.newDictionary();
+  fs.put("F1", f); r2.put("Font", fs); doc.loadPage(1).getObject().put("Resources", r2);
+  assert.deepEqual(fontesHospedadasDoPdf(mupdf, bytesDe(doc)), ["OpenSans-Bold.ttf"]);
 });

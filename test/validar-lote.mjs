@@ -4,12 +4,15 @@
 // (todo acorde que muda é removido da sua posição original e não reaparece lá).
 import * as mupdf from "mupdf";
 import { readFileSync, readdirSync } from "node:fs";
-import { transporPdf } from "../worker.js";
+import { transporPdf, FONTES_HOSPEDADAS } from "../worker.js";
 import { detectarSubstituicoes } from "../detect.js";
 
 const DIR = process.argv[2];
 const LIM = process.argv[3] ? Number(process.argv[3]) : Infinity;
 const N = 2;
+// Como no site: com as fontes hospedadas de fontes/.
+const FONTES = new Map([...new Set(Object.values(FONTES_HOSPEDADAS))]
+  .map((a) => [a, new Uint8Array(readFileSync(new URL("../fontes/" + a, import.meta.url)))]));
 const K = (x, y, p) => `${p}:${Math.round(x)}:${Math.round(y)}`;
 
 // linhas com tokens {texto, x, y} por página
@@ -34,7 +37,7 @@ const arquivos = readdirSync(DIR).filter((f) => /\.pdf$/i.test(f)).slice(0, LIM)
 let okLetra = 0, okFant = 0, erro = 0; const probLetra = [], probFant = [];
 for (const nome of arquivos) {
   const bytes = new Uint8Array(readFileSync(DIR + "/" + nome));
-  let r; try { r = transporPdf(mupdf, bytes.slice(), N); }
+  let r; try { r = transporPdf(mupdf, bytes.slice(), N, undefined, FONTES); }
   catch (e) { erro++; continue; }
   const a = paginas(mupdf.Document.openDocument(bytes.slice(), "application/pdf"));
   const d = paginas(mupdf.Document.openDocument(r.dados, "application/pdf"));

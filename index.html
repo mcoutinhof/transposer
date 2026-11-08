@@ -67,11 +67,14 @@
 }
 </script>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 1.25rem auto 0; padding: 0 1rem; color: #1a1a1a; }
-  @media (min-height: 700px) and (min-width: 600px) { body { margin-top: 3rem; } }
+  /* Coluna da altura da tela: o rodapé fica no fim dela, não colado no botão. */
+  body { font-family: system-ui, sans-serif; max-width: 28rem; margin: 0 auto; padding: 1.25rem 1rem 0; box-sizing: border-box; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; color: #1a1a1a; }
+  @media (min-height: 700px) and (min-width: 600px) { body { padding-top: 3rem; } }
   /* Computador: a página inteira um pouco maior e mais para o meio da tela. */
-  @media (min-height: 700px) and (min-width: 1000px) { html { font-size: 125%; } body { margin-top: 12vh; } }
-  main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; padding-bottom: 2rem; }
+  @media (min-height: 700px) and (min-width: 1000px) { html { font-size: 125%; } body { padding-top: 12vh; } }
+  main { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 1rem; padding-bottom: 2rem; }
+  footer { text-align: center; font-size: 0.85rem; color: #555; padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom)); }
+  footer a { color: #1759ef; }
   h1 img { width: 1.75rem; height: 1.75rem; }
   h1 { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin: 0; font-size: 1rem; color: #1759ef; }
   #area { position: relative; display: grid; place-content: center; justify-items: center; gap: 0.15rem; min-height: 6.5rem; box-sizing: border-box; border: 2px dashed #767676; border-radius: 12px; padding: 0.75rem 1rem; text-align: center; cursor: pointer; }
@@ -143,6 +146,7 @@
   </div>
   <p id="anuncio" class="sr" aria-live="polite"></p>
 </main>
+<footer>Desenvolvido por <a href="https://github.com/mcoutinhof">Mateus Coutinho</a></footer>
 <script type="module" src="./app.js"></script>
 </body>
 </html>
